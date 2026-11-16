@@ -1,12 +1,11 @@
 # How the Pastime plugin works inside
 
 > How the Pastime plugin handles each call from Bloem Server: the checks it makes, the names it
-> gives plays and lists, and how it reports failures. Written for plugin 0.4.1.
+> gives plays and lists, and how it reports failures.
 
 The [front page](../README.md) says what the plugin does for an administrator. This
-page walks through what happens inside one call, why the plugin names things exactly
-as the old integration did, how a failure is reported, and how favourites, watchlist
-and ratings travel.
+page walks through what happens inside one call, how the plugin names plays and lists,
+how a failure is reported, and how favourites, watchlist and ratings travel.
 
 ## One call, start to finish
 
@@ -36,17 +35,15 @@ flowchart TD
 5. **Answer per change.** Each change gets its own result, under Bloem Server's own
    name for it.
 
-A connection made by the old managed integration and one made through Pastime's
-Connect Silo page store exactly the same thing: the key and those three names, with no
-expiry date. Pastime keeps a key alive by extending its expiry while it is used, so the
-plugin never has to refresh it.
+A connection stores the key and those three names, with no expiry date. Pastime keeps a
+key alive by extending its expiry while it is used, so the plugin never has to refresh
+it.
 
 ## Names that stay the same
 
-Pastime remembers plays, playback state and lists under names that the old
-integration worked out from Bloem's own IDs. The plugin works out exactly the same
-names, byte for byte, so Pastime recognizes what it already has and never counts a
-play twice.
+Pastime remembers plays, playback state and lists under names that the plugin works
+out from Bloem's own IDs. The formulas are fixed, byte for byte, so Pastime recognizes
+what it already has and never counts a play twice.
 
 - **A play's name** comes from the account, the profile and the watch-history entry.
   The stop at the end of playback, the history export and any retry of the same
@@ -89,11 +86,12 @@ removals once the profile turns on their switches). A removal comes from Bloem S
 without a time, and sometimes without the title's outside IDs; the plugin then uses
 the moment it received it, and finds the title from the key it was imported under.
 
-Reading goes the other way, page by page, and only ever adds. The plugin tells Bloem
-Server that a page is never the complete list, and it leaves out items Pastime marks
-as removed. So nothing disappears from Bloem because of something done in Pastime.
-Whether Pastime-side removals should ever delete Bloem items is an open decision for
-the owner; until then a Pastime read only adds.
+Reading goes the other way, page by page. The plugin tells Bloem Server that a page is
+never the complete list, so a title that is missing from a page is never taken as
+removed. Only a removal that Pastime names is passed on: a removed favourite,
+watchlist item or rating, and a movie or show deleted from the profile's Pastime
+library. Bloem Server applies those only to items the connection synced and only as
+the connection's removal settings allow.
 
 ## Example: a retry that changes nothing
 
@@ -123,7 +121,8 @@ This example is made up.
 | Reported for the whole call | a response-level fault (`syncFault`, `connectionFault` in `internal/provider/faults.go`) |
 | Reported for one change | a per-event result (`eventOutcome`, `afterInternalError`) |
 | Time runs short | `requestReserve` (25 s) and `deferred()` |
-| Only ever adds | `complete_snapshot=false`, tombstones (`removed=true`) dropped |
+| A page is never the complete list | `complete_snapshot=false` |
+| A removal Pastime names | `removed=true`, passed on as a tombstone (`listRemoval`, `watchedRemoval`) |
 
 ## For developers
 
@@ -132,7 +131,7 @@ The plugin is one `watch_sync_provider.v1` capability served with the SDK's
 checksum-stamped embedded manifest, accepts `BindHostBroker` without dialing the broker
 (it only records the broker ID), and passes `Configure` entries to a callback that
 accepts anything and only warns when the Pastime address is missing or invalid.
-Everything else happens inside the RPCs Silo calls; there are no workers, timers,
+Everything else happens inside the RPCs Bloem Server calls; there are no workers, timers,
 caches or files, so any number of plugin processes behave the same.
 
 ```
@@ -186,8 +185,7 @@ events."), and `ListRemoteState` checks for a page size from 0 to 100 and at mos
 three known state kinds (otherwise INVALID_REQUEST, "Silo asked for a read Pastime
 does not offer.").
 
-Connections enrolled by the former managed integration and connections made through
-`ExchangeAPIKey` store exactly the same credential: the key and those three
+A connection made through `ExchangeAPIKey` stores the key and those three
 attributes, with no expiry, refresh token, type or scopes. Silo never refreshes a
 credential without an expiry, so `RefreshCredentials` only exists to ask for a
 reconnect (INVALID_CREDENTIAL, "Create a new key on Pastime's Connect Silo page and
@@ -206,9 +204,9 @@ the account with `external_subject` set to Pastime's `profile_id` and `username`
 
 ### IDs
 
-Pastime keys recorded plays, entity state and personal state on IDs the former host
-derived. `internal/provider/ids.go` reproduces them byte for byte (`ids_test.go` pins
-golden vectors against a verbatim copy of the legacy function):
+Pastime keys recorded plays, entity state and personal state on IDs derived from
+Bloem's own IDs. `internal/provider/ids.go` computes them byte for byte (`ids_test.go`
+pins golden vectors):
 
 | ID | Formula |
 |---|---|
@@ -227,17 +225,12 @@ The wire event ID is a digest of the exact payload because Pastime refuses a kno
 event ID with a different payload while Silo reuses its own IDs
 (`<OP>:<media_item_id>` for every list change of an item, a resumed session's START).
 An exact retry repeats the ID; any other change gets a new one. Results go back under
-Silo's event ID. The `pevt_` prefix cannot collide with the legacy host's `bloem_evt_`
-receipts.
+Silo's event ID.
 
-Revisions in microseconds are far above the host sequences the legacy integration
-stored, so no new event is judged stale against them. An older event arriving after a
-newer one on the same entity answers `stale`, and a completion is still recorded once
-because Pastime checks the consumption ID separately. The reverse case, host sequences
-arriving after microsecond revisions, only happens after a return to 0.1.14; Pastime
-release A then treats a revision below 10^12 as newer than a stored one at or above
-it, so the returning plugin's changes are not judged stale. An old completion never
-clears a resume point Pastime updated more than five minutes after it.
+An older event arriving after a newer one on the same entity answers `stale`, and a
+completion is still recorded once because Pastime checks the consumption ID
+separately. An old completion never clears a resume point Pastime updated more than
+five minutes after it.
 
 ### Faults
 
@@ -291,14 +284,14 @@ catalog ID, sent as `media.catalog_item_id`. The plugin never sends a watchlist
 position, because Silo derives it from the batch and it would change between runs.
 
 `ListRemoteState` reads `state:read` and reports every page with
-`complete_snapshot=false` and without Pastime's tombstones (`removed=true`). Silo then
-adds and re-keys matched items and infers no removal. Whether Pastime-side removals
-should ever delete Silo items is an open owner decision; until then a Pastime read only
-adds.
+`complete_snapshot=false`, so Silo infers no removal from an absent item. A removal
+Pastime names (`removed=true`) is passed on as a tombstone, as described in
+[the protocol](protocol.md#remote-state). Silo adds and re-keys matched items and
+applies a tombstone only to items this connection synced.
 
 Related pages:
 
-- [How the Pastime plugin works](../README.md): installation, connecting, upgrading,
+- [How the Pastime plugin works](../README.md): installation, connecting,
   building and publishing.
 - [The Pastime sync protocol](protocol.md): every route, payload rule and answer.
 - [What the plugin's checks prove](verification.md).

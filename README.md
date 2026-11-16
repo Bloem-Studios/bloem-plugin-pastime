@@ -32,11 +32,11 @@ It brings back from Pastime:
   (marked by hand, imported from another tracker, or reported by another media server). Plays
   Bloem sent are never read back. Each connection has **Import watched** and **Import
   progress** switches;
-- from version 0.4.0, removals Pastime reports: a movie or show deleted from the profile's
-  Pastime library removes that profile's watch history of it in Bloem, and a removed favourite,
-  watchlist item or rating is removed too, if the connection synced that item and its removal
-  settings allow it. This needs a Bloem Server that applies watched removals; an older one
-  reports a sync warning and changes nothing.
+- removals Pastime reports: a movie or show deleted from the profile's Pastime library removes
+  that profile's watch history of it in Bloem, and a removed favourite, watchlist item or
+  rating is removed too, if the connection synced that item and its removal settings allow it.
+  This needs a Bloem Server that applies watched removals; a server that does not reports a sync
+  warning and changes nothing.
 
 Ratings are whole stars: Pastime stores one to five stars, which are the even values 2 to 10 on
 Bloem's ten-point scale. An odd rating is not sent; it is refused with a message asking for an
@@ -114,5 +114,5 @@ https://github.com/Bloem-Studios/bloem-plugin-pastime/security/advisories/new
 ## Licence
 
 GNU Affero General Public License v3 (AGPL-3.0-only); see [LICENSE](LICENSE). Third-party
-dependencies keep their own licences, copied into `third_party/licenses/`. Releases made before
-the AGPL v3 was applied were published under a proprietary licence and stay under it.
+dependencies keep their own licences, copied into `third_party/licenses/`. Releases published
+under a proprietary licence stay under it.

@@ -1,7 +1,7 @@
 # The Pastime sync protocol
 
 > The requests the Pastime plugin makes to Pastime's sync API, and how it turns Pastime's
-> replies into answers for Bloem Server. Written for plugin 0.4.1.
+> replies into answers for Bloem Server.
 
 The plugin talks to Pastime in four kinds of request, always with one profile's key.
 This page walks through what those requests ask, what the plugin says about a title,
@@ -69,8 +69,7 @@ The plugin trusts nothing it does not expect:
 All calls are `POST <Pastime address>/api/v1/integrations/bloem<route>` with exactly one
 `Authorization: Bearer ptbs_…` header, `Content-Type: application/json`,
 `Accept: application/json` and `User-Agent: bloem-pastime/<version>`. No cookie and no
-`X-Pastime-Profile-ID`. The `bloem` path segment is kept for compatibility with plugin
-0.1.14. Redirects are refused. Each request has a 20-second timeout.
+`X-Pastime-Profile-ID`. Redirects are refused. Each request has a 20-second timeout.
 
 A success is status 200 with exactly one JSON document of at most 1 MiB that decodes
 with unknown fields disallowed. Anything else, including an unknown field, is treated
@@ -89,9 +88,8 @@ answer has status 0 and local code `transport_unavailable` or `invalid_response`
 | `state/events:apply` | personal event | same |
 | `state:read` | `{"kinds":[…],"cursor":"full-v1","page_token","page_size":0..100}`; `cursor` and `page_token` are left out when empty | `{"items":[…],"next_page_token","next_cursor","complete_snapshot","warnings"}` |
 
-An event answer with any other `status` is a broken contract. The plugin does not call
-the provisioning, snapshot, calendar, library, availability, list or recommendation
-routes 0.1.14 used.
+An event answer with any other `status` is a broken contract. These four routes are the
+only ones the plugin calls.
 
 ### Playback event
 
@@ -107,7 +105,7 @@ routes 0.1.14 used.
 - Silo's `SCROBBLE_START`, `SCROBBLE_PAUSE` and `SCROBBLE_STOP` become `start`,
   `pause` and `stop`. `MARK_WATCHED` (history export) is a completed `stop`. Only a
   `stop` can be completed. A completion needs Silo's watch-history ID; without one the
-  event is rejected, as the former host did.
+  event is rejected.
 - `consumption_id` is present exactly when `completed` is true.
 - A completed event without a runtime sends `duration_seconds` 1; an uncompleted one is
   rejected.
@@ -140,8 +138,7 @@ routes 0.1.14 used.
 - Without external IDs the plugin resolves the title from Silo's `provider_item_key`:
   `imdb:tt…` (`^tt[0-9]{1,18}$`), `tmdb:<n>` or `tvdb:<n>` becomes that external ID;
   `catalog:<n>` becomes `catalog_item_id` (a decimal string) with empty
-  `external_ids`. `<n>` is a positive decimal without leading zeros. Pastime before
-  release A answers that field with 422, which rejects the event. Any other key is
+  `external_ids`. `<n>` is a positive decimal without leading zeros. Any other key is
   rejected: "Silo sent no TMDB, IMDb or TVDB ID Pastime can use for this title."
 - Without `occurred_at` the plugin's receive time is both the occurrence and the
   revision.
@@ -154,14 +151,14 @@ A page names either a continuation `next_page_token` or, on the last page,
 `complete_snapshot=false`, and rejects (TEMPORARY) a page with an item outside this
 shape or of a family Silo did not ask for.
 
-From 0.4.0 a `removed` favourite, watchlist or rating item is passed on as a tombstone:
+A `removed` favourite, watchlist or rating item is passed on as a tombstone:
 `WatchSyncRemoteState{provider_item_key: "catalog:<n>", favorite|watchlist: {listed_at,
 removed: true}}` or `rating: {rated_at, removed: true}`, with no media. Silo resolves it
 by that key, removes only items this connection synced and only while the connection's
 removal settings allow it, and a rating removal loses to a rating changed in Silo since
-they last agreed. Before 0.4.0 these items were dropped.
+they last agreed.
 
-From 0.4.0 a removed `watched` item is passed on. It is a movie or show the profile
+A removed `watched` item is passed on too. It is a movie or show the profile
 deleted from its Pastime library while connected:
 `{"provider_item_key":"removed:catalog:<n>","kind":"watched","media_kind":"movie|series","external_ids":{…},"removed":true,"changed_at":<deletion time>}`,
 with no episode fields, `play_count`, `progress_percent`, `rating` or `position`. The

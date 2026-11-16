@@ -18,7 +18,7 @@ sync API. No Floppy application source, assets or tests were brought in.
 - **Outside modules** keep their own licences. Their licence and notice texts are
   copied word for word into `third_party/licenses/`, and their terms govern those
   parts.
-- **Earlier releases** were published under a proprietary licence and stay under it.
+- **Releases published under a proprietary licence** stay under it.
 
 ## Words used in the code
 
