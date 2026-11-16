@@ -1,0 +1,18 @@
+Bloem Plugin SDK
+=================
+
+This project is an independent fork of Silo Plugin SDK v0.13.2, upstream
+revision 1ad0fe54408e99d35e6aee86c489a0edd528f6b2, from
+https://github.com/Silo-Server/silo-plugin-sdk.
+
+The source remains licensed under Apache-2.0. Existing copyright and license
+notices are retained. Bloem changes the project/module identity, documentation,
+examples, compatibility verification, and private release automation while
+preserving the v1 plugin wire contract.
+
+The compatible public contract and runtime additions are synchronized through
+Silo Plugin SDK v0.23.0, revision 96074c2c57bb726ce4cedcb2cb70434a5b1b9667.
+The separate bloem.plugin.v1 native-storage contract is maintained by Bloem.
+
+Bloem is not affiliated with or endorsed by Silo Media L.L.C. References to
+Silo identify the upstream project or compatibility interfaces.

@@ -1,0 +1,94 @@
+{
+  "plugin_id": "bloem.pastime",
+  "version": "0.4.1",
+  "checksum": "__CHECKSUM__",
+  "silo_api_version": "v1",
+  "capabilities": [
+    {
+      "type": "watch_sync_provider.v1",
+      "id": "pastime",
+      "display_name": "Pastime",
+      "description": "Keeps what you watch in step with Pastime.",
+      "watch_sync_provider": {
+        "auth_methods": [
+          "WATCH_SYNC_AUTH_METHOD_API_KEY"
+        ],
+        "supported_media_types": [
+          "WATCH_SYNC_MEDIA_TYPE_MOVIE",
+          "WATCH_SYNC_MEDIA_TYPE_SERIES",
+          "WATCH_SYNC_MEDIA_TYPE_EPISODE"
+        ],
+        "external_id_namespaces": [
+          "tmdb",
+          "imdb",
+          "tvdb"
+        ],
+        "max_batch_size": 100,
+        "scrobble_playback": true,
+        "import_watched": true,
+        "import_progress": true,
+        "export_watched": true,
+        "import_favorites": true,
+        "export_favorites": true,
+        "remove_favorites": true,
+        "import_watchlist": true,
+        "export_watchlist": true,
+        "remove_watchlist": true,
+        "import_ratings": true,
+        "export_ratings": true
+      }
+    }
+  ],
+  "global_config_schema": [
+    {
+      "key": "pastime",
+      "title": "Pastime server",
+      "description": "Where Silo sends what connected profiles watch.",
+      "json_schema": "{\"type\":\"object\",\"properties\":{\"pastime_url\":{\"type\":\"string\",\"maxLength\":255}},\"required\":[\"pastime_url\"],\"additionalProperties\":false}",
+      "required": true,
+      "admin_form": {
+        "fields": [
+          {
+            "key": "pastime_url",
+            "label": "Pastime address",
+            "description": "The address people open Pastime at, for example https://pastime.example.com.",
+            "control": "ADMIN_FORM_CONTROL_TEXT",
+            "placeholder": "https://pastime.example.com",
+            "required": true,
+            "validation": {
+              "pattern": "^https://[^/?#@\\s]+/?$",
+              "max_length": 255
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "supported_platforms": [
+    {
+      "os": "linux",
+      "arch": "amd64"
+    },
+    {
+      "os": "linux",
+      "arch": "arm64"
+    },
+    {
+      "os": "darwin",
+      "arch": "arm64"
+    }
+  ],
+  "presentation": {
+    "display_name": "Pastime",
+    "summary": "Sends playback, history, favourites, watchlist and ratings to Pastime, and brings in what you watched elsewhere.",
+    "description_markdown": "Sends what each connected profile watches to Pastime: live playback, finished plays, favourites, watchlist and ratings. Pastime favourites, watchlist and ratings are added to Silo, and so are plays and resume points Pastime recorded from other sources; plays Silo sent are never read back. A Pastime read never removes anything from Silo.",
+    "setup_markdown": "1. Install the plugin and set **Pastime address** to the address people open Pastime at.\n2. Each person opens Pastime's **Connect Silo** page, creates a key for their Pastime profile, then in Silo switches to that profile, opens **Settings → Watch Providers**, chooses **Pastime** and pastes the key.\n\nA new key replaces the profile's previous one. Disconnecting in Silo stops sending; revoking the key in Pastime does too.",
+    "homepage_url": "https://github.com/Bloem-Studios/bloem-plugins",
+    "source_url": "https://github.com/Bloem-Studios/bloem-plugin-pastime",
+    "support_url": "https://github.com/Bloem-Studios/bloem-plugin-pastime",
+    "changelog_url": "https://github.com/Bloem-Studios/bloem-plugins/releases",
+    "publisher_name": "Bloem Studios",
+    "publisher_url": "https://github.com/Bloem-Studios",
+    "license_spdx": "AGPL-3.0-only"
+  }
+}
