@@ -15,7 +15,7 @@ flowchart LR
   G["Pastime plugin"] --> Q1["1. Who does this<br/>key belong to?"] --> T["Pastime"]
   G --> Q2["2. Record this playback<br/>or finished play"] --> T
   G --> Q3["3. Record this favourite,<br/>watchlist or rating change"] --> T
-  G --> Q4["4. Show me this profile's<br/>favourites, watchlist<br/>and ratings"] --> T
+  G --> Q4["4. Show me what this<br/>profile has in Pastime"] --> T
 ```
 
 1. **Who does this key belong to?** Pastime names its own **instance** (one Pastime
@@ -25,7 +25,8 @@ flowchart LR
    was. A finished play also carries the play's own name, so Pastime counts it once.
 3. **Record this list or rating change.** Adding or removing a favourite or a
    watchlist entry, and setting or removing a rating.
-4. **Show me this profile's lists**, one page at a time.
+4. **Show me what this profile has**, one page at a time: favourites, watchlist,
+   ratings, plays recorded outside Bloem and resume points.
 
 Pastime answers each change with **applied**, **stale** (it already has something
 newer) or **no change**.
@@ -56,7 +57,7 @@ The plugin trusts nothing it does not expect:
 | Who does this key belong to? | `credentials:inspect`, answered as `client.Binding` |
 | Record this playback | `events:apply` with a `client.PlaybackEvent` |
 | Record this list or rating change | `state/events:apply` with a `client.PersonalEvent` |
-| Show me this profile's lists | `state:read` with a `client.PersonalRead`, answered as `client.PersonalPage` |
+| Show me what this profile has | `state:read` with a `client.PersonalRead`, answered as `client.PersonalPage` |
 | Applied, stale, no change | `status` `applied`, `stale`, `no_change` |
 | Outside IDs | `external_ids` (`tmdb`, `imdb`, `tvdb`), `series_external_ids` for an episode |
 | Pastime's catalog number | `catalog_item_id`, or a `catalog:<n>` `provider_item_key` |
@@ -99,7 +100,8 @@ only ones the plugin calls.
  "operation":"start|pause|stop","occurred_at":"RFC 3339","completed":true,
  "consumption_id":"play_…","position_seconds":8100,"duration_seconds":8160,
  "media":{"kind":"movie|episode","external_ids":{"tmdb":"603"},
-          "series_external_ids":{"tvdb":"81189"},"season":1,"episode":3}}
+          "series_external_ids":{"tvdb":"81189"},"season":1,"episode":3,
+          "title":"…","series_title":"…"}}
 ```
 
 - Silo's `SCROBBLE_START`, `SCROBBLE_PAUSE` and `SCROBBLE_STOP` become `start`,
@@ -113,7 +115,9 @@ only ones the plugin calls.
   cannot be negative.
 - Movies need external IDs; episodes need series IDs, `season` ≥ 0 and `episode` ≥ 1.
   Only `tmdb`, `imdb` and `tvdb` IDs with a value are sent. Other media types are
-  rejected.
+  rejected. An episode also carries `title` and `series_title` (trimmed, at most 500
+  characters, left out when empty), which Pastime uses to check the IDs and numbers and
+  to find an episode or show that another catalog numbers differently.
 - `occurred_at` must be after 1970 and at most 5 minutes in the future.
 - An event the plugin cannot translate is REJECTED/INVALID_REQUEST without a request:
   "Silo sent a playback event Pastime cannot record."
@@ -145,41 +149,62 @@ only ones the plugin calls.
 
 ### Remote state
 
-`state:read` items are `{"provider_item_key":"catalog:<n>","kind":"favorite|watchlist|rating","media_kind":"movie|series","external_ids":{…},"removed":bool,"rating"?,"position"?,"changed_at"}`.
+`state:read` takes `kinds`, any of `favorite`, `watchlist`, `rating`, `watched` and
+`progress`. When Bloem Server names none, the plugin sends all five, because Pastime
+reads an empty list as the first three only. A request for any other kind is refused
+without a call to Pastime.
+
+Items are `{"provider_item_key","kind","media_kind":"movie|series|episode","external_ids":{…},"series_external_ids"?,"season_number"?,"episode_number"?,"removed":bool,"rating"?,"position"?,"play_count"?,"progress_percent"?,"changed_at"}`.
 A page names either a continuation `next_page_token` or, on the last page,
 `next_cursor` `"full-v1"`, never both. The plugin passes both through, reports
-`complete_snapshot=false`, and rejects (TEMPORARY) a page with an item outside this
-shape or of a family Silo did not ask for.
+`complete_snapshot=false`, and rejects (TEMPORARY) a page with an item outside the shapes
+below or of a family Bloem Server did not ask for.
+
+What each kind becomes for Bloem Server:
+
+- `favorite`, `watchlist`: a listed movie or series, with `changed_at` as the time it was
+  listed.
+- `rating`: a movie or series with an even `rating` from 2 to 10 and `changed_at` as the
+  time it was rated.
+- `watched`: a movie or episode with a `play_count` of at least 1 and `changed_at` as the
+  last watch time. Pastime reports only plays it recorded from other sources.
+- `progress`: a movie or episode with a `progress_percent` from 0 up to, but not
+  including, 100 and `changed_at` as the pause time.
 
 A `removed` favourite, watchlist or rating item is passed on as a tombstone:
 `WatchSyncRemoteState{provider_item_key: "catalog:<n>", favorite|watchlist: {listed_at,
-removed: true}}` or `rating: {rated_at, removed: true}`, with no media. Silo resolves it
-by that key, removes only items this connection synced and only while the connection's
-removal settings allow it, and a rating removal loses to a rating changed in Silo since
-they last agreed.
+removed: true}}` or `rating: {rated_at, removed: true}`, with no media. Bloem Server
+resolves it by that key, removes only items this connection synced and only while the
+connection's removal settings allow it, and a rating removal loses to a rating changed
+in Bloem since they last agreed.
 
 A removed `watched` item is passed on too. It is a movie or show the profile
 deleted from its Pastime library while connected:
 `{"provider_item_key":"removed:catalog:<n>","kind":"watched","media_kind":"movie|series","external_ids":{…},"removed":true,"changed_at":<deletion time>}`,
 with no episode fields, `play_count`, `progress_percent`, `rating` or `position`. The
 plugin sends it as `WatchSyncRemoteState{media, watched: {removed: true,
-last_watched_at: changed_at}}` (SDK v0.28.0); Silo removes that profile's watches of
-the title up to that time and keeps later ones. Pastime repeats it in every read until
-the profile plays the title again.
+last_watched_at: changed_at}}`; Bloem Server removes that profile's watches of the title
+up to that time and keeps later ones. Pastime repeats it in every read until the profile
+plays the title again.
 
-The shape it checks:
+The shape the plugin checks:
 
 - A page has at most `page_size` items (100 when `page_size` is 0), a
   `next_page_token` of at most 128 bytes and at most 10 `warnings`.
 - `provider_item_key` is `catalog:<n>` with a positive decimal `<n>`, at most 64 bytes.
-- `changed_at` is set; `external_ids` has one to three entries, each `tmdb`, `imdb` or
-  `tvdb` with a non-empty value of at most 80 bytes; `media_kind` is `movie` or
-  `series`.
-- A favourite has no `rating` or `position`. A watchlist item has no `rating`, and a
-  `position` that is not negative when present (it is not passed on). A rating has no
-  `position` and an even `rating` from 2 to 10.
-- The family check applies to removed items too; the shape check applies to present
-  items and to watched removals.
+- `changed_at` is set. `external_ids` has one to three entries, each `tmdb`, `imdb` or
+  `tvdb` with a non-empty value of at most 80 bytes.
+- `favorite`, `watchlist` and `rating` items are `movie` or `series` and carry no episode
+  fields, `play_count` or `progress_percent`. A favourite has no `rating` or `position`.
+  A watchlist item has no `rating`, and a `position` that is not negative when present
+  (it is not passed on). A rating has no `position`.
+- `watched` and `progress` items are `movie` or `episode`, never a whole series, and carry
+  no `rating` or `position`. An episode has `series_external_ids` (one to three entries,
+  the episode's own `external_ids` may be empty) and non-negative `season_number` and
+  `episode_number`. A `watched` item has no `progress_percent`; a `progress` item has no
+  `play_count`.
+- The kind check applies to removed items too; the full shape check applies to present
+  items, and watched removals have their own check above.
 
 ### Answers
 
@@ -222,7 +247,7 @@ Messages for the rows that do not quote one:
   page." A stored key that is not key-shaped is INVALID_CREDENTIAL with the 401
   message.
 
-Silo's handling (upstream `internal/watchsync`): a TEMPORARY or INVALID_CREDENTIAL batch
+Bloem Server's handling (the watch sync it inherits from Silo): a TEMPORARY or INVALID_CREDENTIAL batch
 fault marks nothing; a PERMISSION_DENIED, PERMANENT or INVALID_REQUEST batch fault marks
 every history export in the batch failed and spends one of its five attempts. A
 REJECTED history export is final. A RETRY/TEMPORARY event spends one attempt. A
@@ -237,4 +262,4 @@ Related pages:
   formulas and why faults are split this way.
 - [What the plugin's checks prove](verification.md): the tests behind every row of the
   answers table.
-- [How the Pastime plugin works](../README.md).
+- [The README](../README.md).

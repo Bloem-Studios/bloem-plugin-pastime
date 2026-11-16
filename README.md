@@ -9,84 +9,108 @@ server and keeps the two in step: what the profile watches, rates, favourites an
 puts on its watchlist goes to Pastime, and what Pastime recorded elsewhere comes back.
 It is for people who run both Bloem Server and Pastime.
 
-## What it does
+Bloem Server's watch sync comes from [Silo](https://github.com/Silo-Server/silo-server), the
+media server Bloem Server is built on. The plugin is a watch provider for that sync: the
+plugin capability is `watch_sync_provider.v1`, with ID `pastime`, in plugin `bloem.pastime`.
+Pastime's own pages, and the messages the plugin hands to Bloem Server, say "Silo" for this
+reason.
 
-Bloem Server has a watch sync: it notes what each profile watches and changes, and hands those
-changes to a watch provider, a plugin that talks to one tracking service. This plugin is the
-watch provider for Pastime. Each profile that connects gets its own Pastime key, which Bloem
-Server stores.
+## What it does
 
 For each connected profile the plugin sends Pastime:
 
-- live playback (start, pause, stop) and finished plays from the watch history;
-- with each film or episode, its TMDB, TheTVDB and IMDb IDs, and for an episode its season and
-  episode numbers, its title and its show's title;
-- favourites, watchlist and ratings: what is added, changed and removed in Bloem. Favourite
-  and watchlist removals are sent only when the connection's **Sync favorite removals** and
-  **Sync watchlist removals** switches are on (both start off).
+- live playback: start, pause and stop, with the position and the runtime;
+- finished plays from the watch history, each recorded once even if it is sent again;
+- favourites, watchlist entries and ratings, added, changed and removed. Favourite and
+  watchlist removals go out only when the connection's **Sync favorite removals** and **Sync
+  watchlist removals** switches are on;
+- with each film or episode, its TMDB, IMDb and TheTVDB IDs. For an episode it also sends the
+  show's IDs, the season and episode numbers, and the episode and show titles.
 
-It brings back from Pastime:
+It brings back from Pastime and gives to Bloem Server:
 
-- favourites, watchlist and ratings, as additions only;
+- favourites, watchlist entries and ratings;
 - finished plays and resume points that Pastime recorded from somewhere other than Bloem
-  (marked by hand, imported from another tracker, or reported by another media server). Plays
-  Bloem sent are never read back. Each connection has **Import watched** and **Import
-  progress** switches;
-- removals Pastime reports: a movie or show deleted from the profile's Pastime library removes
-  that profile's watch history of it in Bloem, and a removed favourite, watchlist item or
-  rating is removed too, if the connection synced that item and its removal settings allow it.
-  This needs a Bloem Server that applies watched removals; a server that does not reports a sync
-  warning and changes nothing.
+  Server, for example marked by hand, imported from another tracker or reported by another
+  media server. Plays that Bloem Server sent are never read back. The connection's
+  **Import watched history** and **Import paused progress** switches control these;
+- removals that Pastime names: a removed favourite, watchlist entry or rating, and a movie or
+  show deleted from the profile's Pastime library. Bloem Server applies a removal only to
+  items this connection synced and only as the connection's removal settings allow. A deleted
+  movie or show removes the profile's watch history of it up to the deletion time and keeps
+  later watches.
 
-Ratings are whole stars: Pastime stores one to five stars, which are the even values 2 to 10 on
-Bloem's ten-point scale. An odd rating is not sent; it is refused with a message asking for an
-even one. Unwatched edits, dropped shows and watchlist order are not synced.
+How it behaves:
 
-The plugin only answers the server's calls. It runs no background work and keeps no state.
+- Ratings are whole stars. Pastime stores one to five stars, which are the even values 2 to 10
+  on Bloem's ten-point scale. An odd rating is not sent; its result tells the person to use an
+  even one.
+- An item that is missing from a page of Pastime's lists is never treated as removed. Only a
+  removal that Pastime names counts.
+- Titles are matched by TMDB, IMDb and TheTVDB IDs. A title that came from Pastime can also
+  be named by Pastime's own catalog number.
+- Batches hold 1 to 100 changes. Each change gets its own result, so one that Pastime refuses
+  does not stop the others.
+- Each request to Pastime times out after 20 seconds. Changes that do not fit before Bloem
+  Server's call deadline wait for the next run. When Pastime asks for a pause, the plugin
+  passes it on for at most five minutes (one minute if Pastime gives no time).
+- If Pastime is down or the address is wrong, the whole batch waits for the next run and
+  nothing is lost. A problem with one change affects only that change. A refused key asks the
+  person to create a new one.
 
-## Install
+What it does not do:
+
+- It does not sync unwatched marks, dropped shows or watchlist order.
+- It does not sign in with a password or a code; it connects with a Pastime key only.
+- It runs no background work and keeps no state or files. It only answers Bloem Server's
+  calls, so it needs no storage approval.
+- It never sends a key to any address other than the configured Pastime address, never follows
+  a redirect, and never logs or returns a key or one of Pastime's own error messages.
+
+## Requirements
+
+- [Bloem Server](https://github.com/Bloem-Studios/bloem-server) with plugin support.
+- A [Pastime](https://github.com/Bloem-Studios/pastime) server that people can reach over
+  `https`, and a Pastime profile for each person who connects.
+- Linux (amd64 or arm64) or macOS (arm64) for the Bloem Server host.
+
+## Install and connect
 
 1. As a platform administrator, open Bloem's **Plugins** page, **Catalog** tab, and add the
-   plugin catalog feed under **Repositories, Add repository**:
+   [plugin catalog](https://github.com/Bloem-Studios/bloem-plugins) feed with **Add
+   repository**:
    `https://raw.githubusercontent.com/Bloem-Studios/bloem-plugins/main/manifest.json`
-   (the catalog is at https://github.com/Bloem-Studios/bloem-plugins).
-2. Install `bloem.pastime` from the catalog. Releases exist for Linux (amd64 and arm64) and
-   macOS (arm64).
+2. Install `bloem.pastime` from the catalog.
 3. In the plugin settings, set **Pastime address** to the address people open Pastime at, for
    example `https://pastime.example.com`. It must be `https` with no path (a trailing `/` is
-   fine). The server sends the address with every call, so a change applies at once.
-4. Each person opens Pastime's **Connect Silo** page, creates a key for their Pastime profile,
-   then in Bloem switches to the matching profile, opens **Settings, Watch Providers**,
-   chooses **Pastime** and pastes the key. A new key replaces the profile's previous one.
-   Disconnecting in Bloem, or revoking the key in Pastime, stops the sync.
+   fine). Bloem Server sends the address with every call, so a change applies at once.
+4. Each person opens Pastime's **Connect Silo** page and creates a key for their Pastime
+   profile. In Bloem they switch to the matching profile, open **Settings**, **Watch
+   Providers**, choose **Pastime**, paste the key and select **Connect**. A new key replaces the
+   profile's previous one. Disconnecting in Bloem, or revoking the key in Pastime, stops the
+   sync.
 
 Until the address is set, Pastime is listed under Watch Providers as "Server setup required."
-with its **Connect** button turned off, and syncs of existing connections wait without using
-retries. (Pastime's pages and the plugin's messages say "Silo" because Bloem Server speaks
-Silo's watch-sync contract.)
-
-The plugin has no storage and so needs no native storage approval.
-
-If Pastime is down or the address is wrong, the whole batch waits for the next run and nothing
-is lost. If a key is refused, the person is asked to create a new one. A problem with one change
-affects only that change. A rate limit pauses the connection for as long as Pastime asks, up to
-five minutes.
+and **Connect** is turned off. Syncs of existing connections wait without using retries.
 
 ## Configuration reference
 
-The manifest declares one required installation setting group, `pastime`, with one public field.
-Nothing in it is secret.
+The manifest declares one required installation setting group, `pastime`, with one public
+field. Nothing in it is secret.
 
-| Setting | Required | Rule |
-| --- | --- | --- |
-| `pastime.pastime_url` (label **Pastime address**) | yes | `https` origin with a host name; no user information, query, fragment or path other than `/`; at most 255 characters |
+| Setting | Label | Required | Rule |
+| --- | --- | --- | --- |
+| `pastime.pastime_url` | **Pastime address** | yes | `https` origin with a host name; no user information, query, fragment or path other than `/`; at most 255 characters |
 
-Each profile's connection holds its Pastime key (stored by Bloem Server) and the switches
-described above, which Bloem Server provides.
+Each profile's connection holds its Pastime key, which Bloem Server stores, and the sync
+switches that Bloem Server shows for a watch provider: **Scrobble playback**, **Send watched
+changes**, **Import watched history**, **Import paused progress**, **Sync favorites**, **Sync
+favorite removals**, **Sync watchlist**, **Sync watchlist removals**, **Send ratings** and
+**Import ratings**.
 
 Environment: `BLOEM_PASTIME_ALLOW_LOOPBACK_HTTP=1` in the plugin process allows `http://` for
-`localhost` or a loopback IP. It is meant for isolated tests; Bloem Server does not pass
-environment variables through to plugins, and the admin form only accepts `https`.
+`localhost` or a loopback IP. It is meant for isolated tests. Bloem Server passes only an
+allowlisted environment to plugins, and the admin form accepts only `https`.
 
 ## Build from source
 
@@ -114,5 +138,4 @@ https://github.com/Bloem-Studios/bloem-plugin-pastime/security/advisories/new
 ## Licence
 
 GNU Affero General Public License v3 (AGPL-3.0-only); see [LICENSE](LICENSE). Third-party
-dependencies keep their own licences, copied into `third_party/licenses/`. Releases published
-under a proprietary licence stay under it.
+dependencies keep their own licences, copied into `third_party/licenses/`.

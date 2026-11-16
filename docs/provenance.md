@@ -1,15 +1,10 @@
 # Dependencies and licences
 
-> Where the plugin's code comes from, the licence it ships under, and the third-party modules
+> The licence the plugin ships under, and the third-party modules
 > it uses.
 
-This page walks through who wrote the plugin, which licence covers it, and which
-outside code it includes and under what terms.
-
-## Who wrote it
-
-The plugin was written independently against the published plugin SDK and Pastime's
-sync API. No Floppy application source, assets or tests were brought in.
+This page walks through which licence covers the plugin, and which outside code it
+includes and under what terms.
 
 ## Which licence covers it
 
@@ -18,7 +13,9 @@ sync API. No Floppy application source, assets or tests were brought in.
 - **Outside modules** keep their own licences. Their licence and notice texts are
   copied word for word into `third_party/licenses/`, and their terms govern those
   parts.
-- **Releases published under a proprietary licence** stay under it.
+
+The plugin's code and tests are written for the published plugin SDK and Pastime's sync
+API. They contain no code from any other application.
 
 ## Words used in the code
 
@@ -30,8 +27,7 @@ sync API. No Floppy application source, assets or tests were brought in.
 
 ## For developers
 
-The plugin is independently authored against the published SDK and Pastime's sync
-API. No Floppy application source, assets or tests were imported. Project code is
+Project code is
 AGPL-3.0-only ([LICENSE](../LICENSE), manifest `license_spdx` `AGPL-3.0-only`).
 Third-party dependencies retain their own terms, and their notices and any
 source-access obligations still apply. The following exact module versions are used

@@ -1,11 +1,10 @@
 # What the plugin's checks prove
 
 > What the repository's own checks establish for the Pastime plugin, and what they do not.
->
 
-The repository's checks run on every push and pull request, and again before a
-release is published. This page walks through what they cover in plain words, what they leave open, and then, for
-developers, each check in detail.
+The repository's checks run before a release is published. This page walks through what
+they cover in plain words, what they leave open, and then, for developers, each check in
+detail.
 
 ## What the checks cover
 
@@ -63,17 +62,14 @@ synthetic Pastime servers; no production accounts, keys or deployments are used.
   implementation of the formulas, including encoding/json's HTML escaping and
   awkward inputs (quotes, line separators, invalid UTF-8). Revisions are Unix
   microseconds and zero at or before the epoch. The wire event ID is the payload
-  digest. (`TestIDsMatchLegacyGoldenVectors`, `TestStableTupleKeepsDefaultHTMLEscaping`,
-  `TestStableTupleMatchesLegacyForAwkwardInputs`, `TestRevisionIsUnixMicroseconds`,
-  `TestWireEventIDIsPayloadDigest`.)
+  digest. (`internal/provider/ids_test.go`.)
 - **Credentials.** `ExchangeAPIKey` returns exactly the credential shape (key
   plus `instance_id`, `account_id`, `profile_id`; no expiry, refresh token, type or
   scopes) and the account's username. A credential of that shape drives every
   call. Malformed keys never reach Pastime. Stored attributes that differ from
   Pastime's binding are refused. `RefreshCredentials` asks for a reconnect;
   authorization-code calls are refused. The plugin never returns
-  `updated_credentials`. (`TestExchangeAPIKeyStoresTheLegacyCredentialShape`,
-  `TestExchangeAPIKeyFaults`, `TestGetAccount`, `TestNoRefreshAndKeyOnly`,
+  `updated_credentials`. (`TestExchangeAPIKeyFaults`, `TestGetAccount`, `TestNoRefreshAndKeyOnly`,
   `TestStoredCredentialsMustMatchPastimeBinding`.)
 - **Address setting.** Read only from the call's `values["pastime.pastime_url"]`;
   https origins only, loopback http only with `BLOEM_PASTIME_ALLOW_LOOPBACK_HTTP=1`; a
@@ -86,7 +82,7 @@ synthetic Pastime servers; no production accounts, keys or deployments are used.
   without a runtime sends duration 1; episodes need series IDs and numbers; future and
   pre-epoch times are rejected; replays (`play_recorded=false`) and `stale` answers are
   NO_CHANGE; identical retries repeat the wire ID and changed payloads get a new one.
-  (`TestCompletedPlayCarriesLegacyIDs`, `TestHistoryExportsAndCompletionRules`,
+  (`TestHistoryExportsAndCompletionRules`,
   `TestEpisodesNeedSeriesIDsAndNumbers`, `TestFutureAndPreEpochOccurrencesAreRejected`,
   `TestReplayedOrStalePlaybackIsNoChange`, `TestWireIDsFollowThePayload`.) A batch of
   no events or more than 100 is INVALID_REQUEST (`TestBatchBounds`).
@@ -108,13 +104,12 @@ synthetic Pastime servers; no production accounts, keys or deployments are used.
 - **Personal state.** Lane entities; no watchlist position; scheduled removals
   resolve `imdb:`, `tmdb:`, `tvdb:` and `catalog:` keys and use the receive time; other
   keys and episodes are rejected; odd ratings are rejected.
-  (`TestPersonalChangesUseLegacyEntitiesAndNoPosition`,
-  `TestScheduledRemovalsResolveTheirKey`, `TestRatingsMustBeWholeStars`,
+  (`TestScheduledRemovalsResolveTheirKey`, `TestRatingsMustBeWholeStars`,
   `TestPersonalResultsAndRejections`.)
-- **Remote state.** `complete_snapshot` is always false, even when Pastime sends a
+- **Remote state.** Favourites, watchlist, ratings, watched plays and resume points are read; `complete_snapshot` is always false, even when Pastime sends a
   complete snapshot; removals Pastime names are passed on as tombstones; paging tokens and cursors pass through; items
   outside the closed shape fail the read as TEMPORARY; `rating_precision`, 429 and
-  expired traversals map as documented. (`TestRemoteStatePassesAdditionsAndNamedRemovals`, `TestRemoteStatePassesWatchedRemovals`,
+  expired traversals map as documented. (`TestRemoteStatePassesAdditionsAndNamedRemovals`, `TestRemoteStateReadsWatchedAndProgress`, `TestRemoteStatePassesWatchedRemovals`,
   `TestRemoteStatePagesPassThrough`, `TestRemoteStateRejectsDataOutsideTheContract`,
   `TestRemoteStateFaults`.)
 - **HTTP client.** One `Authorization` header and no identity headers; closed-schema
@@ -140,7 +135,7 @@ synthetic Pastime servers; no production accounts, keys or deployments are used.
   installation setting. (`scripts/check-manifest.py`,
   `TestManifestIsOnePlainWatchSyncCapability`.)
 
-`make release` and `make release-check` (also in CI): each archive's `manifest.json`
+`make release` and `make release-check`: each archive's `manifest.json`
 is `proto.Equal` to what its binary reports and its checksum is the binary's sha256;
 the native archive's binary is run and its output must equal `manifest.json` byte for
 byte; `checksums.txt`, `supported_platforms` and the release platforms agree; the
@@ -161,5 +156,5 @@ Related pages:
 
 - [The Pastime sync protocol](protocol.md) and its [answers table](protocol.md#answers).
 - [How the Pastime plugin works inside](architecture.md).
-- [How the Pastime plugin works](../README.md#build-and-check): the build and release
+- [The README](../README.md#build-from-source): the build and release
   commands.

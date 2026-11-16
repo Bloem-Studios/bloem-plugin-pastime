@@ -86,9 +86,11 @@ removals once the profile turns on their switches). A removal comes from Bloem S
 without a time, and sometimes without the title's outside IDs; the plugin then uses
 the moment it received it, and finds the title from the key it was imported under.
 
-Reading goes the other way, page by page. The plugin tells Bloem Server that a page is
-never the complete list, so a title that is missing from a page is never taken as
-removed. Only a removal that Pastime names is passed on: a removed favourite,
+Reading goes the other way, page by page. Pastime's favourites, watchlist and ratings
+come back, and so do finished plays and resume points that Pastime recorded from
+other sources (never the ones Bloem Server sent). The plugin tells Bloem Server that a
+page is never the complete list, so a title that is missing from a page is never taken
+as removed. Only a removal that Pastime names is passed on: a removed favourite,
 watchlist item or rating, and a movie or show deleted from the profile's Pastime
 library. Bloem Server applies those only to items the connection synced and only as
 the connection's removal settings allow.
@@ -130,7 +132,7 @@ The plugin is one `watch_sync_provider.v1` capability served with the SDK's
 `ServeManifestWithOptions`. The SDK's default runtime answers `GetManifest` with the
 checksum-stamped embedded manifest, accepts `BindHostBroker` without dialing the broker
 (it only records the broker ID), and passes `Configure` entries to a callback that
-accepts anything and only warns when the Pastime address is missing or invalid.
+accepts any settings and only logs a warning (without the address) when the Pastime address is missing or invalid.
 Everything else happens inside the RPCs Bloem Server calls; there are no workers, timers,
 caches or files, so any number of plugin processes behave the same.
 
@@ -182,7 +184,7 @@ Before step 1, each of these RPCs and `ExchangeAPIKey` check that the capability
 capability."). Earlier still, `ApplyEvents` checks it has 1 to 100 events (the
 manifest's `max_batch_size`; otherwise INVALID_REQUEST, "Send between 1 and 100
 events."), and `ListRemoteState` checks for a page size from 0 to 100 and at most the
-three known state kinds (otherwise INVALID_REQUEST, "Silo asked for a read Pastime
+five known state kinds (favourites, watchlist, ratings, watched plays and resume points) (otherwise INVALID_REQUEST, "Silo asked for a read Pastime
 does not offer.").
 
 A connection made through `ExchangeAPIKey` stores the key and those three
@@ -284,15 +286,21 @@ catalog ID, sent as `media.catalog_item_id`. The plugin never sends a watchlist
 position, because Silo derives it from the batch and it would change between runs.
 
 `ListRemoteState` reads `state:read` and reports every page with
-`complete_snapshot=false`, so Silo infers no removal from an absent item. A removal
+`complete_snapshot=false`, so Silo infers no removal from an absent item. A request
+that names no state kind asks Pastime for all five, because Pastime reads an empty list
+as the favourites, watchlist and ratings only. Items come back as follows: a favourite,
+watchlist entry or rating for a movie or series; a watched play (play count and last
+watch time) or a resume point (progress percent below 100 and pause time) for a movie
+or episode, an episode being named by its show's IDs and its season and episode
+numbers. A removal
 Pastime names (`removed=true`) is passed on as a tombstone, as described in
 [the protocol](protocol.md#remote-state). Silo adds and re-keys matched items and
 applies a tombstone only to items this connection synced.
 
 Related pages:
 
-- [How the Pastime plugin works](../README.md): installation, connecting,
-  building and publishing.
+- [The README](../README.md): what the plugin does, installation, connecting and
+  building.
 - [The Pastime sync protocol](protocol.md): every route, payload rule and answer.
 - [What the plugin's checks prove](verification.md).
 - [Watch provider plugins](https://github.com/Bloem-Studios/bloem-server/blob/main/docs/architecture/watch-provider-plugins.md)
