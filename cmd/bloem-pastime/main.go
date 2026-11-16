@@ -26,7 +26,7 @@ var manifestJSON []byte
 
 // version is stamped by the Makefile (-X main.version) and must match
 // manifest.json.
-var version = "0.4.1"
+var version = "0.4.2"
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "manifest" {

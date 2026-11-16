@@ -1,6 +1,6 @@
 {
   "plugin_id": "bloem.pastime",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "checksum": "__CHECKSUM__",
   "silo_api_version": "v1",
   "capabilities": [
@@ -81,7 +81,7 @@
   "presentation": {
     "display_name": "Pastime",
     "summary": "Sends playback, history, favourites, watchlist and ratings to Pastime, and brings in what you watched elsewhere.",
-    "description_markdown": "Sends what each connected profile watches to Pastime: live playback, finished plays, favourites, watchlist and ratings. Pastime favourites, watchlist and ratings are added to Silo, and so are plays and resume points Pastime recorded from other sources; plays Silo sent are never read back. A Pastime read never removes anything from Silo.",
+    "description_markdown": "Sends what each connected profile watches to Pastime: live playback, finished plays, favourites, watchlist and ratings. Pastime favourites, watchlist and ratings are added to Silo, and so are plays and resume points Pastime recorded from other sources; plays Silo sent are never read back. A removal Pastime names is passed on to Silo: a removed favourite, watchlist item or rating, or a movie or show deleted from the profile's Pastime library. Silo applies it only to items this connection synced and only as the connection's removal settings allow; an item missing from a page is never treated as removed.",
     "setup_markdown": "1. Install the plugin and set **Pastime address** to the address people open Pastime at.\n2. Each person opens Pastime's **Connect Silo** page, creates a key for their Pastime profile, then in Silo switches to that profile, opens **Settings → Watch Providers**, chooses **Pastime** and pastes the key.\n\nA new key replaces the profile's previous one. Disconnecting in Silo stops sending; revoking the key in Pastime does too.",
     "homepage_url": "https://github.com/Bloem-Studios/bloem-plugins",
     "source_url": "https://github.com/Bloem-Studios/bloem-plugin-pastime",

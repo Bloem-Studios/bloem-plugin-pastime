@@ -1,5 +1,5 @@
 .PHONY: test verify build release release-check
-VERSION ?= 0.4.1
+VERSION ?= 0.4.2
 RELEASE_PLATFORMS ?= linux/amd64 linux/arm64 darwin/arm64
 RELEASE_DIR ?= bin/release-$(VERSION)
 build:
